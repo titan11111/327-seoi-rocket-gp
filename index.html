@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>背負いロケット グランプリ</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+:root{--ph:30dvh;--bs:clamp(68px,calc(30dvh - 16px - env(safe-area-inset-bottom)),110px)}
+html,body{margin:0;height:100%;overflow:hidden;background:#05070f;color:#fff;font-family:-apple-system,"Hiragino Sans",sans-serif;overscroll-behavior:none}
+/* 3D画面は上70%。コントロールパネルは下30%を常に確保する */
+#stage{position:fixed;left:0;right:0;top:0;height:calc(100dvh - var(--ph));overflow:hidden;background:#05070f}
+body.full #stage{height:100dvh}
+body.full #panel{display:none}
+body.full .hudwrap{display:none}
+#cv{position:absolute;inset:0}
+canvas{display:block;width:100%;height:100%}
+.hudwrap{position:absolute;inset:0;pointer-events:none;z-index:5;text-shadow:0 1px 4px #000;font-weight:700}
+.hl{position:absolute;left:calc(10px + env(safe-area-inset-left));top:calc(6px + env(safe-area-inset-top));display:flex;flex-direction:column;gap:1px}
+#hRank{font-size:30px;line-height:1;letter-spacing:.02em}
+#hRank small{font-size:14px;opacity:.8}
+.hl .sm{font-size:13px;opacity:.95}
+.hr{position:absolute;right:calc(10px + env(safe-area-inset-right));top:calc(6px + env(safe-area-inset-top));display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.btns{display:flex;gap:8px;pointer-events:auto}
+.sbtn{width:42px;height:42px;border-radius:12px;border:2px solid rgba(255,255,255,.55);background:rgba(10,14,30,.55);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;padding:0}
+#stand{font-size:11px;line-height:1.35;background:rgba(5,8,20,.45);border-radius:8px;padding:4px 7px;min-width:132px}
+#stand div{display:flex;gap:5px;align-items:center;white-space:nowrap}
+#stand i{display:inline-block;width:8px;height:8px;border-radius:50%}
+#stand .me{color:#ffe14a}
+#strip{position:absolute;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);width:min(34vw,300px);height:10px;border-radius:6px;background:rgba(255,255,255,.18)}
+#strip .tick{position:absolute;top:-3px;width:2px;height:16px;background:rgba(255,255,255,.55)}
+#strip .tick.on{background:#ffe14a}
+#strip .dot{position:absolute;top:1px;width:8px;height:8px;margin-left:-4px;border-radius:50%;border:1px solid rgba(0,0,0,.6)}
+#strip .dot.me{top:-2px;width:14px;height:14px;margin-left:-7px;border:2px solid #fff;z-index:2}
+#lmName{position:absolute;left:0;right:0;top:34%;text-align:center;pointer-events:none;opacity:0;transition:opacity .3s}
+#lmName.on{opacity:1}
+#lmName b{display:block;font-size:30px;letter-spacing:.06em;text-shadow:0 2px 10px #000}
+#lmName span{font-size:14px;opacity:.9}
+#toast{position:absolute;left:0;right:0;top:20%;text-align:center;font-size:26px;font-weight:800;text-shadow:0 2px 8px #000;pointer-events:none;opacity:0;transition:opacity .2s}
+#toast.on{opacity:1}
+#tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:13px;color:#8ff;opacity:0;transition:opacity .2s;text-shadow:0 1px 4px #000}
+#tag.on{opacity:1}
+#gArrow{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(255,225,74,.9);color:#222;font-size:20px;font-weight:900;display:none;align-items:center;justify-content:center;z-index:6}
+#gArrow.on{display:flex}
+#bMute0{position:fixed;z-index:45;right:calc(12px + env(safe-area-inset-right));top:calc(8px + env(safe-area-inset-top))}
+body:not(.full) #bMute0{display:none}
+#warn{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;box-shadow:inset 0 0 70px 18px rgba(255,40,40,.75);z-index:4}
+/* コントロールパネル（下30%） */
+#panel{position:fixed;left:0;right:0;bottom:0;height:var(--ph);z-index:20;background:linear-gradient(#111a34,#070b18);border-top:2px solid #2b3a6a;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px calc(14px + env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left))}
+.dpad{display:flex;gap:8px;align-items:center;flex:none}
+.dcol{display:flex;flex-direction:column;gap:6px}
+.pb{width:var(--bs);height:var(--bs);border-radius:16px;border:3px solid rgba(255,255,255,.7);background:rgba(40,60,120,.55);color:#fff;font-size:calc(var(--bs)*.42);font-weight:800;display:flex;align-items:center;justify-content:center}
+.pb.half{height:calc((var(--bs) - 6px)/2);font-size:calc(var(--bs)*.3);border-radius:12px}
+.pb.on{background:rgba(90,200,255,.7);transform:scale(.95)}
+#bBoost{width:calc(var(--bs)*1.55);height:var(--bs);border-radius:50% / 50%;border-color:#fa4;background:rgba(160,70,10,.5);font-size:calc(var(--bs)*.24);letter-spacing:.04em;flex:none}
+#bBoost.on{background:rgba(255,160,60,.8)}
+.mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;justify-content:center;font-size:11px;font-weight:700}
+.mid .row{display:flex;align-items:center;gap:6px}
+.mid .row b{width:58px;opacity:.85;white-space:nowrap}
+.gauge{flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden}
+.gauge i{display:block;height:100%;width:100%;transform-origin:left;transform:scaleX(0);background:#5cf}
+.gauge.heat i{background:#fa4}
+.gauge.heat.hot i{background:#f33}
+.gauge.heat.lock i{background:#7ad}
+#hSpd{font-size:13px;text-align:center;opacity:.9}
+body.inner #panel{padding-left:calc(56px + env(safe-area-inset-left));padding-right:calc(56px + env(safe-area-inset-right))}
+/* 画面（全面） */
+.screen{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(5,7,15,.82);padding:calc(10px + env(safe-area-inset-top)) 16px calc(10px + env(safe-area-inset-bottom));text-align:center}
+.screen.on{display:flex}
+.screen h1{margin:0;font-size:30px;letter-spacing:.04em}
+.screen p{margin:0;font-size:14px;opacity:.88;line-height:1.55}
+.mbtn{min-width:200px;height:46px;border-radius:12px;border:2px solid #fff;background:rgba(40,60,120,.8);color:#fff;font-size:17px;font-weight:700}
+.mbtn.main{background:#e8531e;border-color:#ffb08a}
+#sTitle{background:linear-gradient(90deg,rgba(3,5,12,.88) 0%,rgba(3,5,12,.55) 42%,rgba(3,5,12,0) 70%);align-items:flex-start;padding-left:calc(28px + env(safe-area-inset-left));text-align:left}
+#sTitle h1{font-size:34px;line-height:1.15;text-shadow:0 2px 14px #000}
+#sTitle h1 small{display:block;font-size:13px;letter-spacing:.2em;color:#ffb08a;font-weight:600}
+#sTitle .mbtn{min-width:230px}
+.set{display:grid;grid-template-columns:auto auto;gap:8px 16px;align-items:center;text-align:left;max-height:none;overflow:hidden;touch-action:none;font-size:14px}
+.set label{white-space:nowrap}
+.set select,.set button{height:36px;border-radius:8px;border:1px solid #fff;background:#223;color:#fff;font-size:14px;min-width:120px}
+.set .rng{width:140px}
+#rot{z-index:60;background:rgba(5,7,15,.94);pointer-events:none}
+#sRes{overflow:hidden}
+.res{font-size:16px;line-height:1.7}
+.res b{font-size:24px}
+#rList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 18px;font-size:12px;text-align:left;max-width:520px;width:100%}
+#rList div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rList .me{color:#ffe14a;font-weight:800}
+#stamps{font-size:13px;letter-spacing:.04em;max-width:560px}
+#stamps span{display:inline-block;margin:2px 4px;padding:1px 7px;border-radius:10px;background:rgba(255,255,255,.12)}
+#stamps span.on{background:#e8a21e;color:#201400;font-weight:800}
+/* 出走表: 全端末で1人ずつ。内部スクロールを作らない。 */
+#sRoster{gap:8px;background:linear-gradient(120deg,#070e1af5,#16293af5);padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+#sRoster h1{font-size:clamp(18px,3.2dvh,28px)}
+#rosterBox{width:min(840px,100%);flex:1;min-height:0;max-height:420px;overflow:hidden;display:flex}
+.card{display:grid;grid-template-columns:minmax(130px,38%) 1fr;gap:18px;align-items:center;width:100%;min-height:0;text-align:left;padding:12px 20px;border:1px solid #39526a;border-radius:18px;background:#101e30}
+.card[hidden]{display:none}.card.me{border-color:#f6b350}
+.card img{width:100%;height:100%;min-height:0;max-height:320px;object-fit:contain;border-radius:12px;background:#101a38}
+.card .tx{min-width:0;font-size:clamp(12px,2.8dvh,18px);line-height:1.5}
+.card .tx b{font-size:clamp(22px,5dvh,36px);display:block;color:#fff}
+.card .tx .ti{color:#ffcf9a;display:block}.card .tx .ln{color:#bdcedd;display:block;margin:8px 0}
+.card .st{display:flex;flex-direction:column;gap:3px;font-size:clamp(12px,2.8dvh,17px);color:#9fd8ff}
+.rosterNav{display:flex;align-items:center;justify-content:center;gap:18px;flex:none}
+.rosterNav button{min-width:90px;height:44px;border:1px solid #5e7890;border-radius:10px;background:#182c40;color:#e2f5ff;font-size:15px;font-weight:700}
+#rosterCount{min-width:64px;color:#a7c4da;font-variant-numeric:tabular-nums}
+#rotBtns{display:flex;gap:10px;flex:none}#rotBtns .mbtn{min-width:150px;height:44px}
+#load{position:fixed;inset:0;z-index:70;background:#05070f;display:flex;align-items:center;justify-content:center;font-size:15px;letter-spacing:.1em}
+/* 327専用: 30%パネル。指の距離と方向を連続取得する一体パッド */
+#panel{gap:14px;padding-top:5px;background:linear-gradient(110deg,#111e35,#080e1a 60%,#1e140b)}
+.dpad{position:relative;width:calc(var(--bs)*1.65);height:var(--bs);border-radius:26px;background:radial-gradient(ellipse,#385878 0%,#14283e 65%,#0b1526 100%);border:2px solid #57748c;box-shadow:inset 0 0 20px #040c1d;touch-action:none}
+.dcol{display:contents}
+.dpad .pb{position:absolute;width:38%;height:44%;border:0;background:transparent;box-shadow:none;border-radius:14px;font-size:24px;pointer-events:none}
+#bL{left:0;top:28%}#bR{right:0;top:28%}#bU{left:31%;top:0}#bD{left:31%;bottom:0}
+.dpad .pb.on{background:#62d9ff55;color:#bff6ff;transform:none}
+.dpad:after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#8cdef3;box-shadow:0 0 14px #3cd5ff;left:calc(50% - 8px);top:calc(50% - 8px);transform:translate(var(--tx,0px),var(--ty,0px));pointer-events:none}
+.panelTools{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#8ea8c5;letter-spacing:.12em;font-size:9px}
+.panelTools .sbtn{width:44px;height:32px;font-size:15px;border:1px solid #536179;border-radius:8px}
+.mid{gap:4px;max-width:420px}.mid .row b{width:48px;font-size:10px}.gauge{height:6px}
+#hSpd{font-size:11px}#bBoost{width:calc(var(--bs)*1.25);font-size:19px;border-width:2px;box-shadow:inset 0 0 24px #ff92102a,0 0 16px #ff700016}
+#bBoost.on{box-shadow:0 0 28px #ff9b31aa,inset 0 0 30px #fff2be99}
+.courses{display:flex;gap:6px}.courses button{font-size:11px;background:#122536bc;border:1px solid #527080;color:#9bb7cc;border-radius:7px;padding:9px 10px}.courses button.chosen{color:#c9f5ff;border-color:#61dfff;background:#226078aa}
+#sTitle{gap:8px}#sTitle h1{font-size:30px}#sTitle .mbtn{height:40px;min-height:40px}
+#stand{font-size:10px;min-width:120px;background:#07122366}.hr{top:10px}
+@media(max-width:700px){#panel{gap:8px;padding-left:calc(8px + env(safe-area-inset-left));padding-right:calc(8px + env(safe-area-inset-right))}.dpad{width:calc(var(--bs)*1.45)}#bBoost{width:var(--bs)}.panelTools span{display:none}.mid .row b{width:38px;font-size:9px}#sTitle h1{font-size:26px}#sTitle p{font-size:12px}}
+/* 画面内に収める。設定も結果もスクロールさせない。 */
+.screen{overflow:hidden;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.set{grid-template-columns:auto minmax(110px,1fr) auto minmax(110px,1fr);gap:10px 16px;width:min(760px,100%);font-size:13px}
+.set select,.set button{height:44px;min-width:0;width:100%}.set .rng{width:100%;min-width:0;height:44px;margin:0}.set>*{min-width:0}
+.mbtn{height:46px;min-height:44px;flex-shrink:0}.courses button{min-height:44px}#sTitle .mbtn{height:44px;min-height:44px}
+#sPause{gap:8px}.screen h1{flex-shrink:0}
+@media(orientation:landscape) and (max-height:440px){
+ #sRoster{gap:5px;padding-top:8px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+ #rosterBox{max-height:none}.card{padding:8px 14px;gap:14px;grid-template-columns:minmax(110px,30%) 1fr}
+ .card .tx .ln{margin:3px 0}.card .st{flex-direction:row;gap:12px;font-size:11px}.card .tx{font-size:12px}.card .tx b{font-size:23px}
+ #sRoster h1{font-size:18px}.rosterNav button{height:44px}#rotBtns .mbtn{height:44px}
+ #sTitle{gap:5px}#sTitle h1{font-size:26px}#sTitle p{font-size:11px;line-height:1.4}#tBest:empty{display:none}
+ #sRes{gap:4px}#sRes h1{font-size:22px}.res{font-size:12px;line-height:1.4}.res b{font-size:18px}#rList{font-size:11px;gap:1px 18px}#stamps{font-size:10px}
+ .set{gap:6px 12px}#sSet h1{font-size:22px}#sPause h1{font-size:22px}
+}
+</style>
+</head>
+<body class="full">
+<button class="sbtn" id="bMute0" aria-label="ミュート">🔊</button>
+<div id="stage">
+  <div id="cv"></div>
+  <div class="hudwrap" id="hud">
+    <div class="hl"><div id="hRank">1<small>/11位</small></div><div class="sm" id="hTime">0:00.0</div><div class="sm" id="hGate">ゲート 0/0</div></div>
+    <div id="strip"></div>
+    <div class="hr">
+
+      <div id="stand"></div>
+    </div>
+    <div id="lmName"><b></b><span></span></div>
+    <div id="tag"></div>
+  </div>
+  <div id="toast"></div>
+  <div id="gArrow">➤</div>
+  <div id="warn"></div>
+</div>
+
+<div id="panel">
+  <div class="dpad" id="dpad" aria-label="8方向フライトパッド">
+    <div class="pb" id="bL" data-k="l" aria-label="左">◀</div>
+    <div class="dcol"><div class="pb half" id="bU" data-k="u" aria-label="上">▲</div><div class="pb half" id="bD" data-k="d" aria-label="下">▼</div></div>
+    <div class="pb" id="bR" data-k="r" aria-label="右">▶</div>
+  </div>
+  <div class="mid">
+    <div class="panelTools"><button class="sbtn" id="bMute" aria-label="ミュート">🔊</button><span>SLIDE TO FLY</span><button class="sbtn" id="bPause" aria-label="ポーズ">‖</button></div>
+    <div class="row"><b>ブースト</b><div class="gauge"><i id="gBoost"></i></div></div>
+    <div class="row"><b>ねつ</b><div class="gauge heat" id="gHeatBox"><i id="gHeat"></i></div></div>
+    <div id="hSpd">0 m/s　高さ 0m</div>
+  </div>
+  <div class="pb" id="bBoost" aria-label="ブースト">BOOST</div>
+</div>
+
+<div class="screen on" id="sTitle">
+  <h1><small>ROCKET GRAND PRIX</small>背負いロケット<br>グランプリ</h1>
+  <p>背中のロケットは止まらない。<br>◀▶▲▼で舵をとり、BOOSTで加速。<br>東京から世界の名所をめぐる地球一周レース、11人で勝負！</p>
+  <div class="courses"><button id="cEarth" class="chosen">EARTH / 地球一周</button><button id="cSpace">SPACE / 冥王星へ</button></div>
+  <button class="mbtn main" id="bStart">出走表を見る</button>
+  <button class="mbtn" id="bSet1">せってい</button>
+  <p id="tBest" style="font-size:13px"></p>
+</div>
+
+<div class="screen" id="sRoster">
+  <h1 id="rosterTitle">出走表 — 地球一周 —</h1>
+  <div id="rosterBox" aria-live="polite"></div>
+  <nav class="rosterNav" aria-label="レーサーの切り替え"><button id="bRPrev" aria-label="前のレーサー">◀ 前へ</button><span id="rosterCount">1 / 11</span><button id="bRNext" aria-label="次のレーサー">次へ ▶</button></nav>
+  <div id="rotBtns"><button class="mbtn" id="bRBack" style="min-width:120px">もどる</button><button class="mbtn main" id="bGo">スタート位置へ</button></div>
+</div>
+
+<div class="screen" id="sPause">
+  <h1>ポーズ</h1>
+  <button class="mbtn main" id="bResume">つづける</button>
+  <button class="mbtn" id="bRetry">やりなおす</button>
+  <button class="mbtn" id="bSet2">せってい</button>
+  <button class="mbtn" id="bToTitle">タイトルへ</button>
+</div>
+
+<div class="screen" id="sSet">
+  <h1>せってい</h1>
+  <div class="set">
+    <label for="iVol">音量</label><input class="rng" type="range" id="iVol" min="0" max="100" step="5">
+    <label for="iSens">曲がりの感度</label><input class="rng" type="range" id="iSens" min="0.5" max="1.5" step="0.1">
+    <label for="iCpu">CPUの強さ</label><select id="iCpu"><option value="easy">のんびり</option><option value="normal">ふつう</option><option value="hard">はやい</option></select>
+    <label for="iQual">画質</label><select id="iQual"><option value="high">高</option><option value="low">低</option></select>
+    <label for="iShake">画面の揺れ</label><select id="iShake"><option value="1">ON</option><option value="0">OFF</option></select>
+    <label for="iPad">ボタンの位置</label><select id="iPad"><option value="std">標準</option><option value="inner">内側</option></select>
+  </div>
+  <button class="mbtn main" id="bSetBack">もどる</button>
+</div>
+
+<div class="screen" id="sRes">
+  <h1 id="rTitle">ゴール！</h1>
+  <div class="res" id="tRes"></div>
+  <div id="stamps"></div>
+  <div id="rList"></div>
+  <div style="display:flex;gap:10px"><button class="mbtn main" id="bAgain" style="min-width:150px">もう一度</button><button class="mbtn" id="bToTitle2" style="min-width:150px">タイトルへ</button></div>
+</div>
+
+<div class="screen" id="rot"><h1>📱↻</h1><p>画面を横にしてください</p></div>
+<div id="load">よみこみ中…</div>
+
+<script src="three.min.js"></script>
+<script src="world.js"></script>
+<script src="racers.js"></script>
+<script src="planet-maps.js"></script>
+<script src="space.js"></script>
+<script src="fc-ios-controller.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
